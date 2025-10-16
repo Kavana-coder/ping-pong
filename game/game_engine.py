@@ -1,55 +1,36 @@
+# game/paddle.py
 import pygame
-from .paddle import Paddle
-from .ball import Ball
 
-# Game Engine
-
-WHITE = (255, 255, 255)
-
-class GameEngine:
-    def __init__(self, width, height):
+class Paddle:
+    def __init__(self, x, y, width, height, speed=8):
+        self.x = x
+        self.y = y
         self.width = width
         self.height = height
-        self.paddle_width = 10
-        self.paddle_height = 100
+        self.speed = speed
 
-        self.player = Paddle(10, height // 2 - 50, self.paddle_width, self.paddle_height)
-        self.ai = Paddle(width - 20, height // 2 - 50, self.paddle_width, self.paddle_height)
-        self.ball = Ball(width // 2, height // 2, 7, 7, width, height)
+    def move(self, dy, screen_height):
+        """Move paddle vertically while keeping inside screen bounds."""
+        self.y += dy
+        if self.y < 0:
+            self.y = 0
+        if self.y + self.height > screen_height:
+            self.y = screen_height - self.height
 
-        self.player_score = 0
-        self.ai_score = 0
-        self.font = pygame.font.SysFont("Arial", 30)
+    def auto_track(self, ball, screen_height):
+        """
+        Simple AI that tracks the ball's vertical position.
+        Limits speed to self.speed to keep AI beatable.
+        """
+        paddle_center = self.y + self.height / 2
+        ball_center = ball.y + ball.height / 2
+        # small deadzone so AI doesn't jitter
+        if abs(ball_center - paddle_center) < 5:
+            return
+        if ball_center > paddle_center:
+            self.move(min(self.speed, ball_center - paddle_center), screen_height)
+        else:
+            self.move(-min(self.speed, paddle_center - ball_center), screen_height)
 
-    def handle_input(self):
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_w]:
-            self.player.move(-10, self.height)
-        if keys[pygame.K_s]:
-            self.player.move(10, self.height)
-
-    def update(self):
-        self.ball.move()
-        self.ball.check_collision(self.player, self.ai)
-
-        if self.ball.x <= 0:
-            self.ai_score += 1
-            self.ball.reset()
-        elif self.ball.x >= self.width:
-            self.player_score += 1
-            self.ball.reset()
-
-        self.ai.auto_track(self.ball, self.height)
-
-    def render(self, screen):
-        # Draw paddles and ball
-        pygame.draw.rect(screen, WHITE, self.player.rect())
-        pygame.draw.rect(screen, WHITE, self.ai.rect())
-        pygame.draw.ellipse(screen, WHITE, self.ball.rect())
-        pygame.draw.aaline(screen, WHITE, (self.width//2, 0), (self.width//2, self.height))
-
-        # Draw score
-        player_text = self.font.render(str(self.player_score), True, WHITE)
-        ai_text = self.font.render(str(self.ai_score), True, WHITE)
-        screen.blit(player_text, (self.width//4, 20))
-        screen.blit(ai_text, (self.width * 3//4, 20))
+    def rect(self):
+        return pygame.Rect(int(self.x), int(self.y), self.width, self.height)
